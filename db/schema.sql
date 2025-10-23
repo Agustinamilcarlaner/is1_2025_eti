@@ -1,9 +1,0 @@
-
-CREATE TABLE IF NOT EXISTS profesores (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  nombre     TEXT NOT NULL,
-  apellido   TEXT NOT NULL,
-  correo     TEXT NOT NULL,
-  dni        TEXT NOT NULL UNIQUE
-);
-
