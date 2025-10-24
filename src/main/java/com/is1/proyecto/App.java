@@ -1,5 +1,7 @@
 package com.is1.proyecto; // Define el paquete de la aplicación, debe coincidir con la estructura de carpetas.
 
+import com.is1.proyecto.models.Profesor;
+
 // Importaciones necesarias para la aplicación Spark
 import com.fasterxml.jackson.databind.ObjectMapper; // Utilidad para serializar/deserializar objetos Java a/desde JSON.
 import static spark.Spark.*; // Importa los métodos estáticos principales de Spark (get, post, before, after, etc.).
@@ -19,7 +21,6 @@ import java.util.Map; // Interfaz Map, utilizada para Map.of() o HashMap.
 // Importaciones de clases del proyecto
 import com.is1.proyecto.config.DBConfigSingleton; // Clase Singleton para la configuración de la base de datos.
 import com.is1.proyecto.models.User; // Modelo de ActiveJDBC que representa la tabla 'users'.
-import com.is1.proyecto.controllers.ProfesorController;
 
 /**
  * Clase principal de la aplicación Spark.
@@ -68,9 +69,6 @@ public class App {
                 System.err.println("Error al cerrar conexión con ActiveJDBC: " + e.getMessage());
             }
         });
-
-        get("/profesores/nuevo", ProfesorController::formulario, new MustacheTemplateEngine());
-        post("/profesores/crear", ProfesorController::crear, new MustacheTemplateEngine());
 
         // --- Rutas GET para renderizar formularios y páginas HTML ---
 
@@ -295,6 +293,82 @@ public class App {
                 return objectMapper.writeValueAsString(Map.of("error", "Error interno al registrar usuario: " + e.getMessage()));
             }
         });
+
+        //PROFESOR
+
+        // GET: formulario para crear un nuevo profesor
+        get("/profesor/create", (req, res) -> {
+            Map<String, Object> model = new HashMap<>();
+
+            // Mensajes de éxito o error
+            String successMessage = req.queryParams("message");
+            if (successMessage != null && !successMessage.isEmpty()) {
+                model.put("successMessage", successMessage);
+            }
+
+            String errorMessage = req.queryParams("error");
+            if (errorMessage != null && !errorMessage.isEmpty()) {
+                model.put("errorMessage", errorMessage);
+            }
+
+            return new ModelAndView(model, "profesor_form.mustache");
+        }, new MustacheTemplateEngine());
+
+        // POST: guarda el nuevo profesor en la base
+        post("/profesor/new", (req, res) -> {
+            String nombre = req.queryParams("nombre");
+            String apellido = req.queryParams("apellido");
+            String correo = req.queryParams("correo");
+            String dni = req.queryParams("dni");
+
+            // Validaciones básicas
+            if (nombre == null || nombre.isEmpty() || apellido == null || apellido.isEmpty()
+                    || correo == null || correo.isEmpty() || dni == null || dni.isEmpty()) {
+                res.status(400);
+                res.redirect("/profesor/create?error=Todos los campos son requeridos.");
+                return "";
+            }
+
+            try {
+                Profesor nuevo = new Profesor();
+                nuevo.set("nombre", nombre);
+                nuevo.set("apellido", apellido);
+                nuevo.set("correo", correo);
+                nuevo.set("dni", dni);
+                nuevo.saveIt();
+
+                res.status(201);
+                res.redirect("/profesores?message=Profesor registrado correctamente.");
+                return "";
+
+            } catch (Exception e) {
+                System.err.println("Error al registrar profesor: " + e.getMessage());
+                res.status(500);
+                res.redirect("/profesor/create?error=Error interno al registrar profesor.");
+                return "";
+            }
+        });
+
+        // GET: lista de profesores
+        get("/profesores", (req, res) -> {
+            Map<String, Object> model = new HashMap<>();
+
+            String successMessage = req.queryParams("message");
+            if (successMessage != null && !successMessage.isEmpty()) {
+                model.put("successMessage", successMessage);
+            }
+
+            String errorMessage = req.queryParams("error");
+            if (errorMessage != null && !errorMessage.isEmpty()) {
+                model.put("errorMessage", errorMessage);
+            }
+
+            var profesores = Profesor.findAll().orderBy("apellido, nombre");
+            model.put("profesores", profesores);
+
+            return new ModelAndView(model, "profesores_index.mustache");
+        }, new MustacheTemplateEngine());
+
 
     } // Fin del método main
 } // Fin de la clase App
